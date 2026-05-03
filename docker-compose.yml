@@ -1,0 +1,51 @@
+version: "3.9"
+
+services:
+  # ─── PostgreSQL + pgvector ───
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: erp_guide
+      POSTGRES_PASSWORD: erp_guide_pass
+      POSTGRES_DB: erp_guide
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp_guide"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─── Redis ───
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─── FastAPI App ───
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://erp_guide:erp_guide_pass@db:5432/erp_guide
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app  # hot-reload in development
+
+volumes:
+  pgdata:

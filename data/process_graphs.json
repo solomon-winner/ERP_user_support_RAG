@@ -1,0 +1,173 @@
+{
+  "processes": [
+    {
+      "process_name": "payroll_run",
+      "title": "Run Payroll",
+      "description": "Complete payroll processing workflow from period selection through report generation. This is the standard monthly payroll cycle.",
+      "module": "Payroll",
+      "steps": [
+        {
+          "order": 1,
+          "route": "/payroll/period/select",
+          "title": "Select Pay Period",
+          "description": "Choose the month and year for which you want to process payroll. This determines which employees and data will be included.",
+          "target_element": "#pay-period-form",
+          "action": "fill",
+          "fields": [
+            {"name": "period_month", "type": "enum", "description": "Select the payroll month (1-12)", "required": true},
+            {"name": "period_year", "type": "number", "description": "Enter the fiscal year", "required": true}
+          ],
+          "next_step_condition": null
+        },
+        {
+          "order": 2,
+          "route": "/payroll/employee/review",
+          "title": "Review Employee Data",
+          "description": "Review all employee payroll data for the selected period. Check for errors, missing information, or discrepancies. Filter by department or status to focus on specific groups.",
+          "target_element": "#employee-review-table",
+          "action": "navigate",
+          "fields": [
+            {"name": "department", "type": "enum", "description": "Filter by department", "required": false},
+            {"name": "status", "type": "enum", "description": "Filter by review status", "required": false}
+          ],
+          "next_step_condition": "If any employee has errors → go to Fix Errors (Step 3), otherwise → go to Calculate (Step 4)"
+        },
+        {
+          "order": 3,
+          "route": "/payroll/employee/fix",
+          "title": "Fix Employee Data Errors",
+          "description": "Correct any errors found during the review. Common errors include missing bank account numbers, invalid tax IDs, or incorrect salary amounts. After fixing, return to the review step.",
+          "target_element": "#fix-error-form",
+          "action": "fill",
+          "fields": [
+            {"name": "employee_id", "type": "string", "description": "Employee with the error", "required": true},
+            {"name": "field_name", "type": "string", "description": "The field that needs correction", "required": true},
+            {"name": "corrected_value", "type": "string", "description": "The corrected value", "required": true}
+          ],
+          "next_step_condition": "After fixing all errors → return to Review (Step 2)"
+        },
+        {
+          "order": 4,
+          "route": "/payroll/run/calculate",
+          "title": "Calculate Payroll",
+          "description": "Run the payroll calculation engine. This computes gross pay, deductions (tax, insurance, retirement), and net pay for all reviewed employees in the selected period.",
+          "target_element": "#calculate-btn",
+          "action": "click",
+          "fields": [
+            {"name": "include_overtime", "type": "boolean", "description": "Include overtime in calculation", "required": false},
+            {"name": "include_bonus", "type": "boolean", "description": "Include approved bonuses", "required": false}
+          ],
+          "next_step_condition": null
+        },
+        {
+          "order": 5,
+          "route": "/payroll/run/preview",
+          "title": "Preview Payroll Results",
+          "description": "Review the calculated payroll before confirming. Check department totals, look for anomalies, and verify that net pay amounts are reasonable.",
+          "target_element": "#preview-container",
+          "action": "navigate",
+          "fields": [
+            {"name": "view_type", "type": "enum", "description": "Summary or detail view", "required": false}
+          ],
+          "next_step_condition": "If your organization requires approval → go to Request Approval (Step 6), otherwise → go to Confirm (Step 8)"
+        },
+        {
+          "order": 6,
+          "route": "/payroll/approval/request",
+          "title": "Request Approval",
+          "description": "Submit the payroll for managerial approval. Select the approver and add any notes about special circumstances.",
+          "target_element": "#approval-form",
+          "action": "fill",
+          "fields": [
+            {"name": "approver_id", "type": "string", "description": "Select the approver", "required": true},
+            {"name": "notes", "type": "string", "description": "Optional notes to approver", "required": false}
+          ],
+          "next_step_condition": null
+        },
+        {
+          "order": 7,
+          "route": "/payroll/approval/status",
+          "title": "Check Approval Status",
+          "description": "Monitor the approval request. Once approved, proceed to confirm and post the payroll.",
+          "target_element": "#approval-status",
+          "action": "navigate",
+          "fields": [],
+          "next_step_condition": "Once approved → go to Confirm (Step 8)"
+        },
+        {
+          "order": 8,
+          "route": "/payroll/run/confirm",
+          "title": "Confirm and Post Payroll",
+          "description": "Final step: confirm the payroll run and post it to the general ledger. This action is irreversible. Enter the confirmation code sent to your email.",
+          "target_element": "#confirm-form",
+          "action": "fill",
+          "fields": [
+            {"name": "post_to_gl", "type": "boolean", "description": "Auto-post to General Ledger", "required": false},
+            {"name": "confirmation_code", "type": "string", "description": "Email confirmation code", "required": true}
+          ],
+          "next_step_condition": null
+        },
+        {
+          "order": 9,
+          "route": "/payroll/reports/generate",
+          "title": "Generate Reports",
+          "description": "Generate payroll reports for the completed period: payslips for employees, department summaries, tax reports, and bank files for direct deposit.",
+          "target_element": "#report-form",
+          "action": "fill",
+          "fields": [
+            {"name": "report_type", "type": "enum", "description": "Type of report to generate", "required": true},
+            {"name": "format", "type": "enum", "description": "Output format (PDF, CSV, XLSX)", "required": false}
+          ],
+          "next_step_condition": null
+        }
+      ],
+      "total_steps": 9
+    },
+    {
+      "process_name": "invoice_creation",
+      "title": "Create and Send Invoice",
+      "description": "Create a new invoice for a client, preview it, and send it via email or download.",
+      "module": "Finance",
+      "steps": [
+        {
+          "order": 1,
+          "route": "/finance/invoice/create",
+          "title": "Create Invoice",
+          "description": "Fill in the invoice details: client, date, line items, and payment terms.",
+          "target_element": "#invoice-form",
+          "action": "fill",
+          "fields": [
+            {"name": "client_id", "type": "string", "description": "Select the client", "required": true},
+            {"name": "invoice_date", "type": "date", "description": "Invoice date", "required": true},
+            {"name": "due_date", "type": "date", "description": "Payment due date", "required": false},
+            {"name": "payment_terms", "type": "enum", "description": "Net payment terms", "required": false}
+          ],
+          "next_step_condition": null
+        },
+        {
+          "order": 2,
+          "route": "/finance/invoice/preview",
+          "title": "Preview Invoice",
+          "description": "Review the invoice before sending. Check line items, totals, tax calculations, and formatting.",
+          "target_element": "#invoice-preview",
+          "action": "navigate",
+          "fields": [],
+          "next_step_condition": null
+        },
+        {
+          "order": 3,
+          "route": "/finance/invoice/send",
+          "title": "Send Invoice",
+          "description": "Send the invoice to the client via email or download as PDF.",
+          "target_element": "#send-form",
+          "action": "click",
+          "fields": [
+            {"name": "delivery_method", "type": "enum", "description": "Email, PDF download, or both", "required": true}
+          ],
+          "next_step_condition": null
+        }
+      ],
+      "total_steps": 3
+    }
+  ]
+}

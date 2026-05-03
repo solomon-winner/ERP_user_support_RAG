@@ -1,0 +1,360 @@
+{
+  "routes": [
+    {
+      "path": "/payroll/period/select",
+      "method": "GET",
+      "module": "Payroll",
+      "title": "Pay Period Selection",
+      "description": "Select the pay period for payroll processing. Choose the month and year for which payroll will be calculated.",
+      "fields": [
+        {
+          "name": "period_month",
+          "type": "enum",
+          "label": "Month",
+          "description": "Select the payroll month. Must be a valid calendar month within the current or previous fiscal year.",
+          "required": true,
+          "validation": "must be 1-12",
+          "example": "3",
+          "enum_values": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
+        },
+        {
+          "name": "period_year",
+          "type": "number",
+          "label": "Year",
+          "description": "The fiscal year for the pay period. Typically the current year or the previous year for retro adjustments.",
+          "required": true,
+          "validation": "min:2020, max:2030",
+          "example": "2026"
+        }
+      ],
+      "permissions": ["payroll:read"],
+      "next_steps": ["/payroll/employee/review"],
+      "prerequisites": [],
+      "tags": ["payroll", "period", "setup"]
+    },
+    {
+      "path": "/payroll/employee/review",
+      "method": "GET",
+      "module": "Payroll",
+      "title": "Employee Data Review",
+      "description": "Review employee payroll data for the selected period. Check for missing information, discrepancies, or errors before calculating payroll.",
+      "fields": [
+        {
+          "name": "employee_id",
+          "type": "string",
+          "label": "Employee ID",
+          "description": "Unique identifier for the employee. Auto-generated but can be searched.",
+          "required": false,
+          "example": "EMP-001"
+        },
+        {
+          "name": "department",
+          "type": "enum",
+          "label": "Department",
+          "description": "Filter employees by department to review specific groups.",
+          "required": false,
+          "enum_values": ["HR", "IT", "Finance", "Operations", "Sales"]
+        },
+        {
+          "name": "status",
+          "type": "enum",
+          "label": "Review Status",
+          "description": "Current review status of the employee's payroll data. 'Has Errors' means action is required before calculation.",
+          "required": false,
+          "enum_values": ["Pending", "Reviewed", "Has Errors"]
+        }
+      ],
+      "permissions": ["payroll:read"],
+      "next_steps": ["/payroll/run/calculate", "/payroll/employee/fix"],
+      "prerequisites": ["/payroll/period/select"],
+      "tags": ["payroll", "employee", "review"]
+    },
+    {
+      "path": "/payroll/employee/fix",
+      "method": "POST",
+      "module": "Payroll",
+      "title": "Fix Employee Data Errors",
+      "description": "Correct data errors flagged during the employee review step. Fix missing fields, invalid values, or discrepancies in employee records.",
+      "fields": [
+        {
+          "name": "employee_id",
+          "type": "string",
+          "label": "Employee ID",
+          "description": "The employee whose data needs correction.",
+          "required": true,
+          "example": "EMP-001"
+        },
+        {
+          "name": "field_name",
+          "type": "string",
+          "label": "Field to Fix",
+          "description": "The specific field that has an error. Refer to the error description for details.",
+          "required": true,
+          "example": "bank_account"
+        },
+        {
+          "name": "corrected_value",
+          "type": "string",
+          "label": "Corrected Value",
+          "description": "The corrected value for the field. Must pass all validation rules.",
+          "required": true
+        }
+      ],
+      "permissions": ["payroll:write"],
+      "next_steps": ["/payroll/employee/review"],
+      "prerequisites": ["/payroll/employee/review"],
+      "tags": ["payroll", "employee", "fix", "error"]
+    },
+    {
+      "path": "/payroll/run/calculate",
+      "method": "POST",
+      "module": "Payroll",
+      "title": "Calculate Payroll",
+      "description": "Run the payroll calculation for the selected period. The system computes gross pay, deductions, taxes, and net pay for all reviewed employees.",
+      "fields": [
+        {
+          "name": "pay_period_id",
+          "type": "string",
+          "label": "Pay Period",
+          "description": "The pay period to calculate. This is auto-selected from the previous step.",
+          "required": true,
+          "example": "2026-03"
+        },
+        {
+          "name": "include_overtime",
+          "type": "boolean",
+          "label": "Include Overtime",
+          "description": "Whether to include overtime calculations in this run. Overtime rates are configured per department.",
+          "required": false,
+          "example": "true"
+        },
+        {
+          "name": "include_bonus",
+          "type": "boolean",
+          "label": "Include Bonuses",
+          "description": "Whether to include any approved bonuses in this payroll calculation.",
+          "required": false,
+          "example": "false"
+        }
+      ],
+      "permissions": ["payroll:write"],
+      "next_steps": ["/payroll/run/preview"],
+      "prerequisites": ["/payroll/employee/review"],
+      "tags": ["payroll", "calculate", "run"]
+    },
+    {
+      "path": "/payroll/run/preview",
+      "method": "GET",
+      "module": "Payroll",
+      "title": "Payroll Preview",
+      "description": "Preview the calculated payroll results before confirming. Review totals by department, check for anomalies, and verify net pay amounts.",
+      "fields": [
+        {
+          "name": "view_type",
+          "type": "enum",
+          "label": "View",
+          "description": "Switch between summary view (totals by department) and detail view (individual employee breakdown).",
+          "required": false,
+          "enum_values": ["summary", "detail"]
+        }
+      ],
+      "permissions": ["payroll:read"],
+      "next_steps": ["/payroll/approval/request", "/payroll/run/confirm"],
+      "prerequisites": ["/payroll/run/calculate"],
+      "tags": ["payroll", "preview", "review"]
+    },
+    {
+      "path": "/payroll/approval/request",
+      "method": "POST",
+      "module": "Payroll",
+      "title": "Request Payroll Approval",
+      "description": "Submit the calculated payroll for managerial approval. Required if your organization's policy mandates approval before posting.",
+      "fields": [
+        {
+          "name": "approver_id",
+          "type": "string",
+          "label": "Approver",
+          "description": "Select the manager or finance officer who will approve this payroll run.",
+          "required": true,
+          "example": "MGR-001"
+        },
+        {
+          "name": "notes",
+          "type": "string",
+          "label": "Notes",
+          "description": "Optional notes to the approver explaining any special circumstances.",
+          "required": false
+        }
+      ],
+      "permissions": ["payroll:write"],
+      "next_steps": ["/payroll/approval/status"],
+      "prerequisites": ["/payroll/run/preview"],
+      "tags": ["payroll", "approval", "workflow"]
+    },
+    {
+      "path": "/payroll/approval/status",
+      "method": "GET",
+      "module": "Payroll",
+      "title": "Approval Status",
+      "description": "Check the status of a payroll approval request. Wait for the approver to accept or reject before proceeding.",
+      "fields": [
+        {
+          "name": "request_id",
+          "type": "string",
+          "label": "Request ID",
+          "description": "The approval request ID from the previous step.",
+          "required": true,
+          "example": "APR-2026-03-001"
+        }
+      ],
+      "permissions": ["payroll:read"],
+      "next_steps": ["/payroll/run/confirm"],
+      "prerequisites": ["/payroll/approval/request"],
+      "tags": ["payroll", "approval", "status"]
+    },
+    {
+      "path": "/payroll/run/confirm",
+      "method": "POST",
+      "module": "Payroll",
+      "title": "Confirm and Post Payroll",
+      "description": "Final step: confirm the payroll and post it to the general ledger. This action is irreversible — ensure all reviews are complete.",
+      "fields": [
+        {
+          "name": "pay_period_id",
+          "type": "string",
+          "label": "Pay Period",
+          "description": "The pay period being confirmed.",
+          "required": true,
+          "example": "2026-03"
+        },
+        {
+          "name": "post_to_gl",
+          "type": "boolean",
+          "label": "Post to General Ledger",
+          "description": "Whether to automatically create GL entries for this payroll run. If false, you must post manually later.",
+          "required": false,
+          "example": "true"
+        },
+        {
+          "name": "confirmation_code",
+          "type": "string",
+          "label": "Confirmation Code",
+          "description": "Enter the confirmation code sent to your email to authorize this action.",
+          "required": true
+        }
+      ],
+      "permissions": ["payroll:approve"],
+      "next_steps": ["/payroll/reports/generate"],
+      "prerequisites": ["/payroll/run/preview"],
+      "tags": ["payroll", "confirm", "post", "gl"]
+    },
+    {
+      "path": "/payroll/reports/generate",
+      "method": "POST",
+      "module": "Payroll",
+      "title": "Generate Payroll Reports",
+      "description": "Generate payroll reports for the completed period. Available reports include pay slips, department summaries, and tax reports.",
+      "fields": [
+        {
+          "name": "report_type",
+          "type": "enum",
+          "label": "Report Type",
+          "description": "Select the type of report to generate. 'payslips' generates individual PDFs for each employee.",
+          "required": true,
+          "enum_values": ["payslips", "department_summary", "tax_report", "bank_file"]
+        },
+        {
+          "name": "format",
+          "type": "enum",
+          "label": "Format",
+          "description": "Output format for the report. PDF is recommended for payslips, CSV for bank files.",
+          "required": false,
+          "enum_values": ["pdf", "csv", "xlsx"]
+        }
+      ],
+      "permissions": ["payroll:read"],
+      "next_steps": [],
+      "prerequisites": ["/payroll/run/confirm"],
+      "tags": ["payroll", "reports", "generate"]
+    },
+    {
+      "path": "/finance/invoice/create",
+      "method": "POST",
+      "module": "Finance",
+      "title": "Create Invoice",
+      "description": "Create a new invoice for a client. Fill in client details, line items, tax rates, and payment terms.",
+      "fields": [
+        {
+          "name": "client_id",
+          "type": "string",
+          "label": "Client",
+          "description": "Select the client to invoice. Must be an existing client in the system.",
+          "required": true,
+          "example": "CLI-001"
+        },
+        {
+          "name": "invoice_date",
+          "type": "date",
+          "label": "Invoice Date",
+          "description": "The date on the invoice. Defaults to today.",
+          "required": true,
+          "example": "2026-05-01"
+        },
+        {
+          "name": "due_date",
+          "type": "date",
+          "label": "Due Date",
+          "description": "Payment due date. Calculated based on the client's payment terms if not specified.",
+          "required": false,
+          "example": "2026-05-31"
+        },
+        {
+          "name": "payment_terms",
+          "type": "enum",
+          "label": "Payment Terms",
+          "description": "Net payment terms for this invoice. 'Net 30' means payment is due within 30 days.",
+          "required": false,
+          "enum_values": ["Net 15", "Net 30", "Net 60", "Due on Receipt"],
+          "example": "Net 30"
+        }
+      ],
+      "permissions": ["finance:write"],
+      "next_steps": ["/finance/invoice/preview"],
+      "prerequisites": [],
+      "tags": ["finance", "invoice", "create"]
+    },
+    {
+      "path": "/finance/invoice/preview",
+      "method": "GET",
+      "module": "Finance",
+      "title": "Invoice Preview",
+      "description": "Preview the invoice before sending it to the client. Verify line items, totals, and tax calculations.",
+      "fields": [],
+      "permissions": ["finance:read"],
+      "next_steps": ["/finance/invoice/send"],
+      "prerequisites": ["/finance/invoice/create"],
+      "tags": ["finance", "invoice", "preview"]
+    },
+    {
+      "path": "/finance/invoice/send",
+      "method": "POST",
+      "module": "Finance",
+      "title": "Send Invoice",
+      "description": "Send the invoice to the client via email or download as PDF. The invoice status changes to 'Sent'.",
+      "fields": [
+        {
+          "name": "delivery_method",
+          "type": "enum",
+          "label": "Delivery Method",
+          "description": "How to send the invoice to the client. Email sends it to the client's registered email address.",
+          "required": true,
+          "enum_values": ["email", "download_pdf", "both"]
+        }
+      ],
+      "permissions": ["finance:write"],
+      "next_steps": [],
+      "prerequisites": ["/finance/invoice/preview"],
+      "tags": ["finance", "invoice", "send"]
+    }
+  ]
+}
